@@ -71,17 +71,22 @@ fn get_mac_address() -> Result<String, MacAddressError> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-  fn do_step_1() -> Result<(), String> { Ok(()) }
-  fn do_step_2() -> Result<(), String> { Err("error at step 2".to_string()) }
-  fn do_step_3() -> Result<(), String> { Ok(()) }
-  fn alert_user(s: &str) { println!("{}", s); }
+  fn do_step_1_1() -> Result<(), String> { Ok(()) }
+  fn do_step_2_1() -> Result<(), String> { Err("error at step 2".to_string()) }
+  fn do_step_3_1() -> Result<(), String> { Ok(()) }
+  fn alert_user_1(s: &str) { println!("{}", s); }
   (|| {
-    do_step_1()?;
-    do_step_2()?;
-    do_step_3()?;
+
+    do_step_1_1()?;
+    do_step_2_1()?;
+    do_step_3_1()?;
+
     Ok(())
+
   })().unwrap_or_else(|_err: String| {
-    alert_user("Failed to perform the necessary steps");
+
+    alert_user_1("Failed to perform the necessary steps");
+
   });
 
 
@@ -113,9 +118,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     if std::env::args().any(|arg| arg.to_lowercase() == "-h" || arg.to_lowercase() == "--help") {
+
         println!("Usage: ./macgen [-n (won't append newline)] [num (e.g 5)]");
+
     } else {
+
         for _ in 0..iters {
+
             let mut rng = thread_rng();
             let fake_addr: u64 = thread_rng().gen_range(0x100000..=0xffffff);
             let fake_addr_str = format!("{:2X}", fake_addr);
@@ -157,13 +166,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize the key-value store
     //
     let kv_store = Arc::new(KeyValueStore::new());
-    let nodes = Arc::new(RwLock::new(HashMap::<String, NodeInfo>::new()));
+    let node = Arc::new(RwLock::new(HashMap::<String, NodeInfo>::new()));
 
     //
     // Use Arc to share the socket among tasks.
     //
     let socket = Arc::new(socket);
     let socket_for_broadcast = socket.clone();
+    fn do_step_1_2() -> Result<(), String> { Ok(()) }
+    fn do_step_2_2() -> Result<(), String> { Err("error at step 2".to_string()) }
+    fn do_step_3_2() -> Result<(), String> { Ok(()) }
+    fn alert_user_2(s: &str) { println!("{}", s); }
+    (|| {
+
+      do_step_1_2()?;
+      do_step_2_2()?;
+      do_step_3_2()?;
+
+      Ok(())
+
+    })().unwrap_or_else(|_err: String| {
+
+      alert_user_2("Failed to perform the necessary steps");
+
+    });
+
 
     tokio::spawn(
 
@@ -204,7 +231,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     }); // tokio::spawn
 
-    let nodes_clone = nodes.clone();
+    // let node_clone = node.clone();
+    let node_clone = Arc::new(RwLock::new(HashMap::<String, NodeInfo>::new()));
 
     tokio::spawn(
 
@@ -223,7 +251,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
               handle_tcp_stream(
 
                 stream,
-                nodes_clone.clone(),
+                node_clone.clone(),
                 kv_store.clone()
 
                 ) // end handle_tcp_stream
@@ -252,7 +280,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
             println!("Received handshake from: {}", node_name);
             {
-                let mut nodes_guard = nodes.write().await;
+                let mut nodes_guard = node.write().await;
                 nodes_guard.insert(
 
                   node_name.clone(), NodeInfo {
@@ -267,7 +295,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             socket.send_to(serialized_greeting.as_bytes(), &addr).await?;
 
             // Start heartbeat for this node
-            let nodes_clone = nodes.clone();
+            let node_clone = node.clone();
             tokio::spawn(async move {
                 loop {
                     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
@@ -285,7 +313,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 async fn handle_tcp_stream(
 
   mut stream: TcpStream,
-  nodes: Arc<RwLock<HashMap<String,
+  node: Arc<RwLock<HashMap<String,
   NodeInfo>>>,
   kv_store: Arc<KeyValueStore>
 
@@ -307,8 +335,8 @@ async fn handle_tcp_stream(
             kv_store.set(key.clone(), value.clone()).await;
 
             // Broadcast sync to all nodes
-            let nodes_guard = nodes.read().await;
-            for (_, node_info) in nodes_guard.iter() {
+            let node_guard = node.read().await;
+            for (_, node_info) in node_guard.iter() {
                 let mut stream = match TcpStream::connect(node_info.tcp_addr).await {
                     Ok(stream) => stream,
                     Err(_) => continue,
