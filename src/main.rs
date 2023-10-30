@@ -6,8 +6,19 @@ use std::sync::Arc;
 use mac_address::MacAddressError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-const BROADCAST_ADDR: &str = "255.255.255.255:8888";
-const TCP_PORT: u16 = 9000;
+use rand::{seq::SliceRandom, thread_rng, Rng};
+
+const BROADCAST_ADDR5: &str = "255.255.255.255:8885";
+const BROADCAST_ADDR4: &str = "255.255.255.254:8884";
+const BROADCAST_ADDR3: &str = "255.255.255.253:8883";
+const BROADCAST_ADDR2: &str = "255.255.255.252:8882";
+const BROADCAST_ADDR1: &str = "255.255.255.251:8881";
+const TCP_PORT9005: u16 = 9005;
+const TCP_PORT9004: u16 = 9004;
+const TCP_PORT9003: u16 = 9003;
+const TCP_PORT9002: u16 = 9002;
+const TCP_PORT9001: u16 = 9001;
+const TCP_PORT9000: u16 = 9000;
 
 #[derive(Debug, Serialize, Deserialize)]
 enum Message {
@@ -59,52 +70,175 @@ fn get_mac_address() -> Result<String, MacAddressError> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+  fn do_step_1() -> Result<(), String> { Ok(()) }
+  fn do_step_2() -> Result<(), String> { Err("error at step 2".to_string()) }
+  fn do_step_3() -> Result<(), String> { Ok(()) }
+  fn alert_user(s: &str) { println!("{}", s); }
+  (|| {
+    do_step_1()?;
+    do_step_2()?;
+    do_step_3()?;
+    Ok(())
+  })().unwrap_or_else(|_err: String| {
+    alert_user("Failed to perform the necessary steps");
+  });
+
+
+    let oui_prefixes: Vec<&str> = vec![
+        "00:0E:F6", "00:08:28", "84:7A:88", "D8:A2:5E", "00:30:0B", "00:26:0C", "A4:C5:4E",
+        "94:86:CD", "E0:35:60", "00:19:BC", "70:01:36", "FC:1F:C0", "00:E0:DE", "00:07:19",
+        "00:1B:AF", "00:24:27", "28:4F:CE", "00:22:A0", "74:40:BB", "28:E7:94", "C4:93:00",
+        "30:A2:20", "00:17:88", "02:5B:76", "2C:F4:32", "40:16:7E", "40:B0:76", "5C:A6:E6",
+        "60:E3:27", "68:9A:87", "62:5C:65", "68:9A:87", "A0:8C:FD", "B8:BB:AF", "F0:F2:74",
+        "F0:35:75", "F2:34:11", "CC:40:D0", "20:4E:7F", "AC:37:43", "04:0E:C2", "18:2B:05",
+        "00:04:D2", "24:B6:FD", "F0:46:3B", "00:50:FF", "00:0B:2A", "00:1F:ED", "00:22:FB",
+        "CC:3F:EA", "00:02:BF",
+    ];
+
+    let iters = if std::env::args().any(|arg| arg.parse::<u32>().is_ok()) {
+        let arg_num = std::env::args()
+            .find(|arg| arg.parse::<u32>().is_ok())
+            .expect("Pre-checked for numeric arg.")
+            .parse::<u32>()
+            .expect("Already verified as parsable arg.");
+
+        if arg_num == 0 {
+            1
+        } else {
+            arg_num
+        }
+    } else {
+        1
+    };
+
+    if std::env::args().any(|arg| arg.to_lowercase() == "-h" || arg.to_lowercase() == "--help") {
+        println!("Usage: ./macgen [-n (won't append newline)] [num (e.g 5)]");
+    } else {
+        for _ in 0..iters {
+            let mut rng = thread_rng();
+            let fake_addr: u64 = thread_rng().gen_range(0x100000..=0xffffff);
+            let fake_addr_str = format!("{:2X}", fake_addr);
+
+            let substrings = fake_addr_str
+                .as_bytes()
+                .chunks(2)
+                .map(std::str::from_utf8)
+                .collect::<Result<Vec<&str>, _>>()
+                .expect("Expected valid chunks!");
+
+            let formatted_addr = substrings.join(":");
+
+            if std::env::args().any(|arg| arg == "-n") {
+                print!(
+                    "{}:{} ",
+                    oui_prefixes
+                        .choose(&mut rng)
+                        .expect("Vec should not be empty."),
+                    formatted_addr
+                );
+            } else {
+                println!(
+                    "{}:{}",
+                    oui_prefixes
+                        .choose(&mut rng)
+                        .expect("Vec should not be empty."),
+                    formatted_addr
+                );
+            };
+        }
+    };
+
     let local_addr: SocketAddr = "0.0.0.0:8888".parse()?;
     let socket = UdpSocket::bind(&local_addr).await?;
     socket.set_broadcast(true)?;
 
+    //
     // Initialize the key-value store
+    //
     let kv_store = Arc::new(KeyValueStore::new());
-
     let nodes = Arc::new(RwLock::new(HashMap::<String, NodeInfo>::new()));
 
+    //
     // Use Arc to share the socket among tasks.
+    //
     let socket = Arc::new(socket);
     let socket_for_broadcast = socket.clone();
 
-    tokio::spawn(async move {
+    tokio::spawn(
+
+      async move {
+
         match get_mac_address() {
+
             Ok(node_name) => {
-                let tcp_addr = format!("{}:{}", "0.0.0.0", TCP_PORT).parse().unwrap();
+
+                let tcp_addr = format!("{}:{}", "0.0.0.0", TCP_PORT9005).parse().unwrap();
+
                 let msg = Message::Handshake {
+
                     node_name: node_name.clone(),
                     tcp_addr,
-                };
+
+                }; // end let msg
+
         let serialized_msg = serde_json::to_string(&msg).unwrap();
 
         loop {
+
             println!("Sending UDP broadcast...");
-            socket_for_broadcast.send_to(serialized_msg.as_bytes(), BROADCAST_ADDR).await.unwrap();
+            socket_for_broadcast.send_to(serialized_msg.as_bytes(), BROADCAST_ADDR5).await.unwrap();
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-        }
-            },
+
+        } //end loop
+
+            }, // Ok(node_name)
+
             Err(e) => {
+
                 eprintln!("Error fetching MAC address: {:?}", e);
-            }
-        }
-    });
+
+            } // end Err(e)
+
+        } // match get_mac_address
+
+    }); // tokio::spawn
+
     let nodes_clone = nodes.clone();
-    tokio::spawn(async move {
-        let listener = TcpListener::bind(("0.0.0.0", TCP_PORT)).await.unwrap();
+
+    tokio::spawn(
+
+      async move {
+
+        let listener = TcpListener::bind(("0.0.0.0", TCP_PORT9004)).await.unwrap();
+
         println!("TCP listener started.");
+
         while let Ok((stream, _)) = listener.accept().await {
+
             println!("Accepted new TCP connection.");
-            tokio::spawn(handle_tcp_stream(stream, nodes_clone.clone(), kv_store.clone()));
-        }
-    });
+
+            tokio::spawn(
+
+              handle_tcp_stream(
+
+                stream,
+                nodes_clone.clone(),
+                kv_store.clone()
+
+                ) // end handle_tcp_stream
+
+              ); // tokio::spawn
+
+        } // end while let Ok
+
+    } // end async move
+
+    ); // end tokio::spawn
 
     let mut buf = vec![0u8; 1024];
     loop {
+
         let (len, addr) = socket.recv_from(&mut buf).await?;
         println!("Received data on UDP from {}", addr);
         let received_msg: Message = serde_json::from_slice(&buf[..len])?;
@@ -119,7 +253,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Received handshake from: {}", node_name);
             {
                 let mut nodes_guard = nodes.write().await;
-                nodes_guard.insert(node_name.clone(), NodeInfo { last_seen: std::time::Instant::now(), tcp_addr });
+                nodes_guard.insert(
+
+                  node_name.clone(), NodeInfo {
+
+                    last_seen: std::time::Instant::now(), tcp_addr
+
+                  });
             }
 
             let greeting = Message::Greeting;
@@ -142,7 +282,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-async fn handle_tcp_stream(mut stream: TcpStream, nodes: Arc<RwLock<HashMap<String, NodeInfo>>>, kv_store: Arc<KeyValueStore> ) {
+async fn handle_tcp_stream(
+
+  mut stream: TcpStream,
+  nodes: Arc<RwLock<HashMap<String,
+  NodeInfo>>>,
+  kv_store: Arc<KeyValueStore>
+
+  ) {
+
     let mut buf = vec![0u8; 1024];
     let len = stream.read(&mut buf).await.unwrap();
     let received_msg: Message = serde_json::from_slice(&buf[..len]).unwrap();
