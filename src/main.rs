@@ -203,7 +203,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                   let tcp_addr: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9000).parse().unwrap();
 
-                  //#[cfg(debug_assertions)]
+                  #[cfg(debug_assertions)]
                   println!("tcp_addr={}", tcp_addr);
 
                   tcp_addr
@@ -211,7 +211,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 fn alert_user_3(s: &str) {
 
-                  //#[cfg(debug_assertions)]
+                  #[cfg(debug_assertions)]
                   println!("alert_user_3()");
                   println!("{}", s);
 
