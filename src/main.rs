@@ -294,17 +294,21 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     ); // end tokio::spawn
 
     let mut buf = vec![0u8; 1024];
+
     loop {
 
         let (len, addr) = socket.recv_from(&mut buf).await?;
         println!("Received data on UDP from {}", addr);
+
         let received_msg: Message = serde_json::from_slice(&buf[..len])?;
 
         let local_node_name = get_mac_address()?;
 
         if let Message::Handshake { node_name, tcp_addr } = received_msg {
+
             // Ignore packets from ourselves
             if node_name == local_node_name {
+
                 continue;
             }
             println!("Received handshake from: {}", node_name);
