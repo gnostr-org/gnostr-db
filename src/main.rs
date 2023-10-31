@@ -8,16 +8,33 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
-const BROADCAST_ADDR5: &str = "255.255.255.255:8885";
-const BROADCAST_ADDR4: &str = "255.255.255.254:8884";
-const BROADCAST_ADDR3: &str = "255.255.255.253:8883";
-const BROADCAST_ADDR2: &str = "255.255.255.252:8882";
-const BROADCAST_ADDR1: &str = "255.255.255.251:8881";
+const LOCAL_ADDR: &str = "0.0.0.0";
+const LOCAL_TCP_PORT: u16 = 8888;
+
+// #[cfg(debug_assertions)]
+// const BROADCAST_ADDR5: &str = "255.255.255.255:8885";
+// #[cfg(debug_assertions)]
+// const BROADCAST_ADDR4: &str = "255.255.255.254:8884";
+// #[cfg(debug_assertions)]
+// const BROADCAST_ADDR3: &str = "255.255.255.253:8883";
+// #[cfg(debug_assertions)]
+// const BROADCAST_ADDR2: &str = "255.255.255.252:8882";
+// #[cfg(debug_assertions)]
+// const BROADCAST_ADDR1: &str = "255.255.255.251:8881";
+
+const BROADCAST_ADDR: &str = "255.255.255.251:8888";
+
+#[cfg(debug_assertions)]
 const TCP_PORT9005: u16 = 9005;
+#[cfg(debug_assertions)]
 const TCP_PORT9004: u16 = 9004;
+#[cfg(debug_assertions)]
 const TCP_PORT9003: u16 = 9003;
+#[cfg(debug_assertions)]
 const TCP_PORT9002: u16 = 9002;
+#[cfg(debug_assertions)]
 const TCP_PORT9001: u16 = 9001;
+
 const TCP_PORT9000: u16 = 9000;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -71,25 +88,6 @@ fn get_mac_address() -> Result<String, MacAddressError> {
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
-  fn do_step_1_1() -> Result<(), String> { Ok(()) }
-  fn do_step_2_1() -> Result<(), String> { Err("error at step 2".to_string()) }
-  fn do_step_3_1() -> Result<(), String> { Ok(()) }
-  fn alert_user_1(s: &str) { println!("{}", s); }
-  (|| {
-
-    do_step_1_1()?;
-    do_step_2_1()?;
-    do_step_3_1()?;
-
-    Ok(())
-
-  })().unwrap_or_else(|_err: String| {
-
-    alert_user_1("Failed to perform the necessary steps");
-
-  });
-
-
     let oui_prefixes: Vec<&str> = vec![
         "00:0E:F6", "00:08:28", "84:7A:88", "D8:A2:5E", "00:30:0B", "00:26:0C", "A4:C5:4E",
         "94:86:CD", "E0:35:60", "00:19:BC", "70:01:36", "FC:1F:C0", "00:E0:DE", "00:07:19",
@@ -115,7 +113,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     } else {
         1
-    };
+    }; // end let iters
 
     if std::env::args().any(|arg| arg.to_lowercase() == "-h" || arg.to_lowercase() == "--help") {
 
@@ -127,7 +125,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let mut rng = thread_rng();
             let fake_addr: u64 = thread_rng().gen_range(0x100000..=0xffffff);
+            #[cfg(debug_assertions)]
+            println!("fake_addr={}", fake_addr);
             let fake_addr_str = format!("{:2X}", fake_addr);
+            #[cfg(debug_assertions)]
+            println!("fake_addr_str={}", fake_addr_str);
 
             let substrings = fake_addr_str
                 .as_bytes()
@@ -135,6 +137,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map(std::str::from_utf8)
                 .collect::<Result<Vec<&str>, _>>()
                 .expect("Expected valid chunks!");
+
+            #[cfg(debug_assertions)]
+            println!("substrings={:?}", substrings);
 
             let formatted_addr = substrings.join(":");
 
@@ -156,10 +161,22 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             };
         }
-    };
+    }; // end --help else not --help
 
-    let local_addr: SocketAddr = "0.0.0.0:8888".parse()?;
-    let socket = UdpSocket::bind(&local_addr).await?;
+    // #[cfg(debug_assertions)]
+    // let local_addr_9005: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9005).parse().unwrap();
+    // #[cfg(debug_assertions)]
+    // let local_addr_9004: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9004).parse().unwrap();
+    // #[cfg(debug_assertions)]
+    // let local_addr_9003: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9003).parse().unwrap();
+    // #[cfg(debug_assertions)]
+    // let local_addr_9002: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9002).parse().unwrap();
+    // #[cfg(debug_assertions)]
+    // let local_addr_9001: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9001).parse().unwrap();
+    // #[cfg(debug_assertions)]
+    let local_addr_9000: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9000).parse().unwrap();
+
+    let socket = UdpSocket::bind(&local_addr_9000).await?;
     socket.set_broadcast(true)?;
 
     //
@@ -173,24 +190,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //
     let socket = Arc::new(socket);
     let socket_for_broadcast = socket.clone();
-    fn do_step_1_2() -> Result<(), String> { Ok(()) }
-    fn do_step_2_2() -> Result<(), String> { Err("error at step 2".to_string()) }
-    fn do_step_3_2() -> Result<(), String> { Ok(()) }
-    fn alert_user_2(s: &str) { println!("{}", s); }
-    (|| {
-
-      do_step_1_2()?;
-      do_step_2_2()?;
-      do_step_3_2()?;
-
-      Ok(())
-
-    })().unwrap_or_else(|_err: String| {
-
-      alert_user_2("Failed to perform the necessary steps");
-
-    });
-
 
     tokio::spawn(
 
@@ -200,12 +199,42 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             Ok(node_name) => {
 
-                let tcp_addr = format!("{}:{}", "0.0.0.0", TCP_PORT9005).parse().unwrap();
+                fn assign_tcp_addr() -> SocketAddr {
+
+                  let tcp_addr: SocketAddr = format!("{}:{}", "0.0.0.0", TCP_PORT9000).parse().unwrap();
+
+                  //#[cfg(debug_assertions)]
+                  println!("tcp_addr={}", tcp_addr);
+
+                  tcp_addr
+                }
+
+                fn alert_user_3(s: &str) {
+
+                  //#[cfg(debug_assertions)]
+                  println!("alert_user_3()");
+                  println!("{}", s);
+
+                }
+
+                //
+
+                (|| {
+
+                  assign_tcp_addr();
+                  Ok(())
+
+                })().unwrap_or_else(|_err: String| {
+
+                  alert_user_3("alert_user_3:assign_tcp_addr()");
+
+                });
+
+                let tcp_addr = assign_tcp_addr();
 
                 let msg = Message::Handshake {
 
-                    node_name: node_name.clone(),
-                    tcp_addr,
+                  node_name: node_name.clone(), tcp_addr,
 
                 }; // end let msg
 
@@ -214,7 +243,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         loop {
 
             println!("Sending UDP broadcast...");
-            socket_for_broadcast.send_to(serialized_msg.as_bytes(), BROADCAST_ADDR5).await.unwrap();
+            socket_for_broadcast.send_to(serialized_msg.as_bytes(), BROADCAST_ADDR).await.unwrap();
             tokio::time::sleep(std::time::Duration::from_secs(5)).await;
 
         } //end loop
@@ -227,18 +256,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             } // end Err(e)
 
-        } // match get_mac_address
+        } // end match get_mac_address
 
-    }); // tokio::spawn
+    }); // end tokio::spawn
 
-    // let node_clone = node.clone();
-    let node_clone = Arc::new(RwLock::new(HashMap::<String, NodeInfo>::new()));
+    let node_clone = node.clone();
+    // let node_clone = Arc::new(RwLock::new(HashMap::<String, NodeInfo>::new()));
 
     tokio::spawn(
 
       async move {
 
-        let listener = TcpListener::bind(("0.0.0.0", TCP_PORT9004)).await.unwrap();
+        let listener = TcpListener::bind(("0.0.0.0", TCP_PORT9000)).await.unwrap();
 
         println!("TCP listener started.");
 
