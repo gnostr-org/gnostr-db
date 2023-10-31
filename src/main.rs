@@ -311,7 +311,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
                 continue;
             }
+
             println!("Received handshake from: {}", node_name);
+
             {
                 let mut nodes_guard = node.write().await;
                 nodes_guard.insert(
