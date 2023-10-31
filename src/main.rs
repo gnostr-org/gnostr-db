@@ -328,17 +328,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             socket.send_to(serialized_greeting.as_bytes(), &addr).await?;
 
             // Start heartbeat for this node
-            let node_clone = node.clone();
-            tokio::spawn(async move {
-                loop {
-                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-                    println!("Sending heartbeat to {}", tcp_addr);
-                    let mut stream = TcpStream::connect(tcp_addr).await.unwrap();
-                    let heartbeat_msg = Message::Heartbeat;
-                    let serialized_msg = serde_json::to_string(&heartbeat_msg).unwrap();
-                    stream.write_all(serialized_msg.as_bytes()).await.unwrap();
-                }
-            });
+            // let node_clone = node.clone();
+
+            tokio::spawn(async move { loop {
+
+              tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+              println!("Sending heartbeat to {}", tcp_addr);
+              let mut stream = TcpStream::connect(tcp_addr).await.unwrap();
+              let heartbeat_msg = Message::Heartbeat;
+              let serialized_msg = serde_json::to_string(&heartbeat_msg).unwrap();
+              stream.write_all(serialized_msg.as_bytes()).await.unwrap();
+
+            }});
         }
     }
 }
