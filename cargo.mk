@@ -18,6 +18,10 @@ cargo-install:### 	cargo install --path .
 #@. $(HOME)/.cargo/env || true
 	#@cargo install --path $(PWD)
 	@cargo install --locked --path $(PWD)
+	@$(MAKE) cargo-install-gnostr-db-cli
+
+cargo-install-gnostr-db-cli:### 	cargo install gnostr-db-cli
+	cd gnostr-db-cli && cargo install --path .
 
 ##	:
 cargo-b-release:cargo-build-release
