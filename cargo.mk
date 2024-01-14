@@ -24,6 +24,7 @@ cargo-install-gnostr-db-cli:### 	cargo install gnostr-db-cli
 	cd gnostr-db-cli && cargo install --path .
 
 ##	:
+build-release:cargo-build-release
 cargo-b-release:cargo-build-release
 cargo-build-release:### 	cargo-build-release
 ##:cargo-build-release
