@@ -107,7 +107,7 @@ export PYTHON_VERSION
 help:## 	help
 	@sed -n 's/^##//p' ${MAKEFILE_LIST} | column -t -s ':' |  sed -e 's/^/ /'
 rustup-install:## 	rustup-install
-	$(shell echo which rustup) || curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y --no-modify-path --default-toolchain nightly --profile default && . "$(HOME)/.cargo/env" || true
+	$(shell echo which rustup) || curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | bash -s -- -y --no-modify-path --default-toolchain nightly --profile default
 	$(shell echo which rustup) && rustup default nightly
 
 cargo-b:## 	cargo-b
