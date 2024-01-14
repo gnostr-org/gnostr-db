@@ -1,10 +1,13 @@
+use mac_address::MacAddressError;
 use serde::{Deserialize, Serialize};
-use tokio::{net::{TcpListener, TcpStream, UdpSocket}, sync::RwLock};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use mac_address::MacAddressError;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::{
+    net::{TcpListener, TcpStream, UdpSocket},
+    sync::RwLock,
+};
 
 use rand::{seq::SliceRandom, thread_rng, Rng};
 
@@ -22,14 +25,27 @@ const TCP_PORT9000: u16 = 9000;
 
 #[derive(Debug, Serialize, Deserialize)]
 enum Message {
-    Handshake { node_name: String, tcp_addr: SocketAddr },
+    Handshake {
+        node_name: String,
+        tcp_addr: SocketAddr,
+    },
     Greeting,
     Heartbeat,
     HeartbeatResponse,
-    SetValue { key: String, value: String }, // New Message for setting a value
-    GetValue { key: String },                // New Message for getting a value
-    ValueResponse { value: Option<String> }, // New Message for sending back the value or an acknowledgment
-    Sync { key: String, value: String }, // New message for synchronization
+    SetValue {
+        key: String,
+        value: String,
+    }, // New Message for setting a value
+    GetValue {
+        key: String,
+    }, // New Message for getting a value
+    ValueResponse {
+        value: Option<String>,
+    }, // New Message for sending back the value or an acknowledgment
+    Sync {
+        key: String,
+        value: String,
+    }, // New message for synchronization
 }
 
 // Create a new struct for the key-value store
@@ -70,20 +86,28 @@ fn get_mac_address() -> Result<String, MacAddressError> {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-  fn do_step_1() -> Result<(), String> { Ok(()) }
-  fn do_step_2() -> Result<(), String> { Err("error at step 2".to_string()) }
-  fn do_step_3() -> Result<(), String> { Ok(()) }
-  fn alert_user(s: &str) { println!("{}", s); }
-  (|| {
-    do_step_1()?;
-    do_step_2()?;
-    do_step_3()?;
-    Ok(())
-  })().unwrap_or_else(|_err: String| {
-    alert_user("Failed to perform the necessary steps");
-  });
-
+    fn do_step_1() -> Result<(), String> {
+        Ok(())
+    }
+    fn do_step_2() -> Result<(), String> {
+        Err("error at step 2".to_string())
+    }
+    fn do_step_3() -> Result<(), String> {
+        Ok(())
+    }
+    fn alert_user(s: &str) {
+        println!("{}", s);
+    }
+    (|| {
+        do_step_1()?;
+        do_step_2()?;
+        do_step_3()?;
+        Ok(())
+    })()
+    .unwrap_or_else(|_err: String| {
+        alert_user("");
+        //std::process::exit(0);
+    });
 
     let oui_prefixes: Vec<&str> = vec![
         "00:0E:F6", "00:08:28", "84:7A:88", "D8:A2:5E", "00:30:0B", "00:26:0C", "A4:C5:4E",
@@ -112,8 +136,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         1
     };
 
+    if std::env::args().any(|arg| arg.to_lowercase() == "-v" || arg.to_lowercase() == "--version") {
+        println!("v0.0.0");
+        std::process::exit(0);
+    }
     if std::env::args().any(|arg| arg.to_lowercase() == "-h" || arg.to_lowercase() == "--help") {
-        println!("Usage: ./macgen [-n (won't append newline)] [num (e.g 5)]");
+        println!("gnostr-db [-n (won't append newline)] [num (e.g 5)]");
+        std::process::exit(0);
     } else {
         for _ in 0..iters {
             let mut rng = thread_rng();
@@ -165,87 +194,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let socket = Arc::new(socket);
     let socket_for_broadcast = socket.clone();
 
-    tokio::spawn(
-
-      async move {
-
+    tokio::spawn(async move {
         match get_mac_address() {
-
             Ok(node_name) => {
-
                 let tcp_addr = format!("{}:{}", "0.0.0.0", TCP_PORT9005).parse().unwrap();
 
                 let msg = Message::Handshake {
-
                     node_name: node_name.clone(),
                     tcp_addr,
-
                 }; // end let msg
 
-        let serialized_msg = serde_json::to_string(&msg).unwrap();
+                let serialized_msg = serde_json::to_string(&msg).unwrap();
 
-        loop {
-
-            println!("Sending UDP broadcast...");
-            socket_for_broadcast.send_to(serialized_msg.as_bytes(), BROADCAST_ADDR5).await.unwrap();
-            tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-
-        } //end loop
-
-            }, // Ok(node_name)
+                loop {
+                    println!("Sending UDP broadcast...");
+                    socket_for_broadcast
+                        .send_to(serialized_msg.as_bytes(), BROADCAST_ADDR5)
+                        .await
+                        .unwrap();
+                    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+                } //end loop
+            } // Ok(node_name)
 
             Err(e) => {
-
                 eprintln!("Error fetching MAC address: {:?}", e);
-
             } // end Err(e)
-
         } // match get_mac_address
-
     }); // tokio::spawn
 
     let nodes_clone = nodes.clone();
 
     tokio::spawn(
+        async move {
+            let listener = TcpListener::bind(("0.0.0.0", TCP_PORT9004)).await.unwrap();
 
-      async move {
+            println!("TCP listener started.");
 
-        let listener = TcpListener::bind(("0.0.0.0", TCP_PORT9004)).await.unwrap();
+            while let Ok((stream, _)) = listener.accept().await {
+                println!("Accepted new TCP connection.");
 
-        println!("TCP listener started.");
-
-        while let Ok((stream, _)) = listener.accept().await {
-
-            println!("Accepted new TCP connection.");
-
-            tokio::spawn(
-
-              handle_tcp_stream(
-
-                stream,
-                nodes_clone.clone(),
-                kv_store.clone()
-
-                ) // end handle_tcp_stream
-
-              ); // tokio::spawn
-
-        } // end while let Ok
-
-    } // end async move
-
+                tokio::spawn(
+                    handle_tcp_stream(stream, nodes_clone.clone(), kv_store.clone()), // end handle_tcp_stream
+                ); // tokio::spawn
+            } // end while let Ok
+        }, // end async move
     ); // end tokio::spawn
 
     let mut buf = vec![0u8; 1024];
     loop {
-
         let (len, addr) = socket.recv_from(&mut buf).await?;
         println!("Received data on UDP from {}", addr);
         let received_msg: Message = serde_json::from_slice(&buf[..len])?;
 
         let local_node_name = get_mac_address()?;
 
-        if let Message::Handshake { node_name, tcp_addr } = received_msg {
+        if let Message::Handshake {
+            node_name,
+            tcp_addr,
+        } = received_msg
+        {
             // Ignore packets from ourselves
             if node_name == local_node_name {
                 continue;
@@ -254,17 +261,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             {
                 let mut nodes_guard = nodes.write().await;
                 nodes_guard.insert(
-
-                  node_name.clone(), NodeInfo {
-
-                    last_seen: std::time::Instant::now(), tcp_addr
-
-                  });
+                    node_name.clone(),
+                    NodeInfo {
+                        last_seen: std::time::Instant::now(),
+                        tcp_addr,
+                    },
+                );
             }
 
             let greeting = Message::Greeting;
             let serialized_greeting = serde_json::to_string(&greeting).unwrap();
-            socket.send_to(serialized_greeting.as_bytes(), &addr).await?;
+            socket
+                .send_to(serialized_greeting.as_bytes(), &addr)
+                .await?;
 
             // Start heartbeat for this node
             let nodes_clone = nodes.clone();
@@ -283,14 +292,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 async fn handle_tcp_stream(
-
-  mut stream: TcpStream,
-  nodes: Arc<RwLock<HashMap<String,
-  NodeInfo>>>,
-  kv_store: Arc<KeyValueStore>
-
-  ) {
-
+    mut stream: TcpStream,
+    nodes: Arc<RwLock<HashMap<String, NodeInfo>>>,
+    kv_store: Arc<KeyValueStore>,
+) {
     let mut buf = vec![0u8; 1024];
     let len = stream.read(&mut buf).await.unwrap();
     let received_msg: Message = serde_json::from_slice(&buf[..len]).unwrap();
@@ -300,8 +305,11 @@ async fn handle_tcp_stream(
             println!("Received Heartbeat");
             let response = Message::HeartbeatResponse;
             let serialized_response = serde_json::to_string(&response).unwrap();
-            stream.write_all(serialized_response.as_bytes()).await.unwrap();
-        },
+            stream
+                .write_all(serialized_response.as_bytes())
+                .await
+                .unwrap();
+        }
         Message::SetValue { key, value } => {
             println!("Received SetValue");
             kv_store.set(key.clone(), value.clone()).await;
@@ -313,26 +321,37 @@ async fn handle_tcp_stream(
                     Ok(stream) => stream,
                     Err(_) => continue,
                 };
-                let sync_msg = Message::Sync { key: key.clone(), value: value.clone() };
+                let sync_msg = Message::Sync {
+                    key: key.clone(),
+                    value: value.clone(),
+                };
                 let serialized_msg = serde_json::to_string(&sync_msg).unwrap();
                 let _ = stream.write_all(serialized_msg.as_bytes()).await;
             }
 
-            let response = Message::ValueResponse { value: Some("Value set successfully.".to_string()) };
+            let response = Message::ValueResponse {
+                value: Some("Value set successfully.".to_string()),
+            };
             let serialized_response = serde_json::to_string(&response).unwrap();
-            stream.write_all(serialized_response.as_bytes()).await.unwrap();
-        },
+            stream
+                .write_all(serialized_response.as_bytes())
+                .await
+                .unwrap();
+        }
         Message::GetValue { key } => {
             println!("Received GetValue");
             let value = kv_store.get(&key).await;
             let response = Message::ValueResponse { value };
             let serialized_response = serde_json::to_string(&response).unwrap();
-            stream.write_all(serialized_response.as_bytes()).await.unwrap();
-        },
+            stream
+                .write_all(serialized_response.as_bytes())
+                .await
+                .unwrap();
+        }
         Message::Sync { key, value } => {
             println!("Received Sync");
             kv_store.set(key, value).await;
-        },
+        }
         _ => {}
     }
 }
