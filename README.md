@@ -1,3 +1,22 @@
+## gnostr-db
+
+### gnostr-db
+
+```
+gnostr-db
+```
+### gnostr-db-cli
+
+```
+gnostr-db-cli set relays "wss://relay.damus.io,wss://nostr-pub.wellorder.net,wss://nostr.mom,wss://nostr.slothy.win,wss://relay.stoner.com,wss://nostr.einundzwanzig.space,wss://nos.lol,wss://relay.oldcity-bitcoiners.info,wss://relay.sendstr.com,wss://nostr.massmux.com,wss://nostr-relay.schnitzel.world" --node 0.0.0.0:9004
+
+```
+
+```
+gnostr-db-cli get relays --node 0.0.0.0:9004
+```
+
+
 # rustp2p
 
 A simple yet powerful Peer-to-Peer key-value database implemented in Rust. This project also includes a CLI (Command Line Interface) that enables users to interact with the database effortlessly. Explore the power of distributed systems, emphasising the performance and reliability that Rust brings to the table.
